@@ -6,6 +6,7 @@ const TableData = require("../models/tableData");
 const deepEqual = require("deep-equal");
 const fs = require("fs");
 const path = require("path");
+const readline = require('readline');
 
 class CompareApi {
 	/**
@@ -1325,7 +1326,57 @@ class CompareApi {
 
 		return sqlScript;
 	}
+	static createFile(script) {
+		let readingTable = false;
+		let tableName = "";
+		let sqlCommand = "";
+		let constraints = [];
+		let sqlFile = [];
+		let scriptWithConstraints = "";
 
+		script.map((line) => {
+			if (readingTable) {
+				if (line.includes("--- END")) {
+					sqlFile.push(line);
+					readingTable = false;
+					scriptWithConstraints = `\n--- BEGIN ${tableName} ---\n` +
+						`ALTER TABLE IF EXISTS ${tableName} ADD \n` +
+						`${sqlCommand};` +
+						`\n--- END ${tableName} ---\n`;
+					sqlCommand ? constraints.push(scriptWithConstraints) : null;
+					sqlCommand = "";
+				}
+				else if(line.includes('CREATE TABLE')){
+					tableName = `"` + line.split(' "')[1].split(" ")[0] ;
+					let commandArr = line.split(/\r?\n/);
+					commandArr.map((m) => {
+						if(m.includes("CONSTRAINT") && m.includes("FOREIGN KEY")) {
+							m.includes(",") ? sqlCommand += `${m}\n` : sqlCommand += m ;
+						}
+						else if(m.includes(");")){
+							let k = sqlFile.pop();
+							let l = k.replace(',', '')
+							sqlFile.push(l);
+							sqlFile.push(`${m}\n`)
+						}
+						else
+						{
+							sqlFile.push(`${m}\n`)
+						}
+					})
+				}
+				else {
+					sqlFile.push(line)
+				}
+			}
+			if (!readingTable && line.includes("--- BEGIN")) {
+				sqlFile.push(line);
+				readingTable = true;
+				scriptWithConstraints = "";
+			}
+		});
+		return sqlFile.concat(constraints);
+	}
 	/**
 	 *
 	 * @param {String[]} scriptLines
@@ -1360,11 +1411,14 @@ class CompareApi {
 				file.write(`/*** SCRIPT AUTHOR: ${config.compareOptions.author.padEnd(titleLength)} ***/\n`);
 				file.write(`/***    CREATED ON: ${datetime.padEnd(titleLength)} ***/\n`);
 				file.write(`/******************${"*".repeat(titleLength + 2)}***/\n`);
-
-				scriptLines.forEach(function (line) {
-					file.write(line);
+				// let singleLines = [];
+				// scriptLines.map((scriptLine) => {
+				// 	singleLines.push(scriptLine.split(/\r?\n/))
+				// })
+				let newFile = this.createFile(scriptLines);
+				newFile.map((line) => {
+					file.write(line.toString());
 				});
-
 				file.end();
 			} catch (err) {
 				reject(err);
