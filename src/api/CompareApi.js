@@ -1329,7 +1329,7 @@ class CompareApi {
 	static createFile(script) {
 		let readingTable = false;
 		let tableName = "";
-		let sqlCommand = "";
+		let sqlCommand = [];
 		let constraints = [];
 		let sqlFile = [];
 		let scriptWithConstraints = "";
@@ -1339,29 +1339,31 @@ class CompareApi {
 				if (line.includes("--- END")) {
 					sqlFile.push(line);
 					readingTable = false;
-					scriptWithConstraints = `\n--- BEGIN ${tableName} ---\n` +
-						`ALTER TABLE IF EXISTS ${tableName} ADD \n` +
-						`${sqlCommand};` +
-						`\n--- END ${tableName} ---\n`;
-					sqlCommand ? constraints.push(scriptWithConstraints) : null;
-					sqlCommand = "";
+					sqlCommand.map((command) => {
+						scriptWithConstraints = `\n--- BEGIN ${tableName} ---\n` +
+							`ALTER TABLE IF EXISTS ${tableName} ADD \n` +
+							`${command};` +
+							`\n--- END ${tableName} ---\n`;
+						sqlCommand.length > 0 ? constraints.push(scriptWithConstraints) : null;
+					})
+					sqlCommand = [];
 				}
 				else if(line.includes('CREATE TABLE')){
 					tableName = `"` + line.split(' "')[1].split(" ")[0] ;
 					let commandArr = line.split(/\r?\n/);
-					commandArr.map((m) => {
-						if(m.includes("CONSTRAINT") && m.includes("FOREIGN KEY")) {
-							m.includes(",") ? sqlCommand += `${m}\n` : sqlCommand += m ;
+					commandArr.map((command) => {
+						if(command.includes("CONSTRAINT") && command.includes("FOREIGN KEY")) {
+							command.includes(",") ? sqlCommand.push(command.replace(",", "")) : sqlCommand.push(command);
 						}
-						else if(m.includes(");")){
+						else if(command.includes(");")){
 							let k = sqlFile.pop();
 							let l = k.replace(',', '')
 							sqlFile.push(l);
-							sqlFile.push(`${m}\n`)
+							sqlFile.push(`${command}\n`)
 						}
 						else
 						{
-							sqlFile.push(`${m}\n`)
+							sqlFile.push(`${command}\n`)
 						}
 					})
 				}
