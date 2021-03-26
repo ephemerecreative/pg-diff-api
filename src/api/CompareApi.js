@@ -231,7 +231,9 @@ class CompareApi {
 		for (let sourceTable in sourceTables) {
 			let sqlScript = [];
 			let actionLabel = "";
-
+            // if(!dbTargetObjects.tables[sourceTable]) {
+            //
+			// }
 			if (dbTargetObjects.tables[sourceTable]) {
 				//Table exists on both database, then compare table schema
 				actionLabel = "ALTER";
@@ -292,7 +294,10 @@ class CompareApi {
 			for (let table in dbTargetObjects.tables) {
 				let sqlScript = [];
 
-				if (!sourceTables[table]) sqlScript.push(sql.generateDropTableScript(table));
+				if (!sourceTables[table]) {
+					if(table !== config.migrationOptions.historyTableName)
+					sqlScript.push(sql.generateDropTableScript(table));
+				}
 
 				finalizedScript.push(...this.finalizeScript(`DROP TABLE ${table}`, sqlScript));
 			}
@@ -1326,6 +1331,7 @@ class CompareApi {
 
 		return sqlScript;
 	}
+
 	static createFile(script) {
 		let readingTable = false;
 		let tableName = "";
@@ -1347,27 +1353,22 @@ class CompareApi {
 						sqlCommand.length > 0 ? constraints.push(scriptWithConstraints) : null;
 					})
 					sqlCommand = [];
-				}
-				else if(line.includes('CREATE TABLE')){
-					tableName = `"` + line.split(' "')[1].split(" ")[0] ;
+				} else if (line.includes('CREATE TABLE')) {
+					tableName = `"` + line.split(' "')[1].split(" ")[0];
 					let commandArr = line.split(/\r?\n/);
 					commandArr.map((command) => {
-						if(command.includes("CONSTRAINT") && command.includes("FOREIGN KEY")) {
+						if (command.includes("CONSTRAINT") && command.includes("FOREIGN KEY")) {
 							command.includes(",") ? sqlCommand.push(command.replace(",", "")) : sqlCommand.push(command);
-						}
-						else if(command.includes(");")){
+						} else if (command.includes(");")) {
 							let k = sqlFile.pop();
 							let l = k.replace(',', '')
 							sqlFile.push(l);
 							sqlFile.push(`${command}\n`)
-						}
-						else
-						{
+						} else {
 							sqlFile.push(`${command}\n`)
 						}
 					})
-				}
-				else {
+				} else {
 					sqlFile.push(line)
 				}
 			}
