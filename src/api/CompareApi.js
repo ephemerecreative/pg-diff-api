@@ -295,7 +295,7 @@ class CompareApi {
 				let sqlScript = [];
 
 				if (!sourceTables[table]) {
-					if(table !== config.migrationOptions.historyTableName)
+					if(table !== `"public"."${config.migrationOptions.historyTableName}"`)
 					sqlScript.push(sql.generateDropTableScript(table));
 				}
 
