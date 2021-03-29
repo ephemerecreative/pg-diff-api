@@ -1346,7 +1346,7 @@ class CompareApi {
 					sqlFile.push(line);
 					readingTable = false;
 					sqlCommand.map((command) => {
-                        const constraint_name = command.split(' "')[1].split(' "')[0];
+                        const constraint_name = command.split(' "')[1].split('"')[0];
 						scriptWithConstraints = `\n--- BEGIN ${tableName} ---\n` +
 							`ALTER TABLE IF EXISTS ${tableName} DROP CONSTRAINT IF EXISTS ${constraint_name}; \n` +
 							`ALTER TABLE IF EXISTS ${tableName} ADD \n` +
